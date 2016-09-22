@@ -2,6 +2,11 @@
 name = "malk-lexer"
 version = "0.1.0"
 authors = ["Andrew Cann <shum@canndrew.org>"]
+repository = "https://github.com/canndrew/malk-lexer"
+homepage = "https://github.com/canndrew/malk-lexer"
+readme = "README.md"
+description = "A simple unicode lexer"
+license = "GPL-3.0"
 
 [dependencies]
 unicode-width = "0.1.3"
