@@ -330,7 +330,8 @@ fn sub_lex<'s>(start: TextPos, src: &'s str, symbols: &[&'s str]) -> Result<SubL
                     if c.is_whitespace() ||
                        c.is_xid_start() ||
                        c.is_open_bracket() ||
-                       c.is_close_bracket() {
+                       c.is_close_bracket() ||
+                       c == '\'' || c == '"' {
                         break;
                     }
                     new_p
