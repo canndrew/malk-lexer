@@ -1,0 +1,10 @@
+[package]
+name = "malk-lexer"
+version = "0.1.0"
+authors = ["Andrew Cann <shum@canndrew.org>"]
+
+[dependencies]
+unicode-width = "0.1.3"
+unicode-xid = "0.0.3"
+unicode-brackets = "0.1.1"
+
