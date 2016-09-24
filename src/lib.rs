@@ -22,22 +22,25 @@ mod test {
     use token::{Token, TokenKind};
     use tokens::TokensBuf;
     use span::TextPos;
-    use lex::lex;
+    use lex::{LexError, lex};
 
     use std::borrow::Cow;
 
-    #[test]
-    fn test() {
-        let tp = |p| TextPos {
+    fn tp(p: usize) -> TextPos {
+        TextPos {
             col: p,
             line: 0,
             byte: p,
-        };
+        }
+    }
+
+    #[test]
+    fn test() {
         let symbols = [
             "!@#",
             "$%^",
         ];
-        let src = r#"()[{}] "wow\"\t\n\x22""floo"  !@#$%^hello_123"#;
+        let src = r#"()[{}] "wow\"\t\n\x23""floo"  !@#$%^hello_123"\u{394}""#;
         let tokens_buf = lex(src, &symbols).unwrap();
         assert_eq!(tokens_buf, TokensBuf {
             tokens: vec![
@@ -68,7 +71,7 @@ mod test {
                     start: tp(6),
                 },
                 Token {
-                    kind: TokenKind::String(Cow::Owned(String::from("wow\"\t\n\""))),
+                    kind: TokenKind::String(Cow::Owned(String::from("wow\"\t\n#"))),
                     start: tp(7),
                 },
                 Token {
@@ -91,8 +94,81 @@ mod test {
                     kind: TokenKind::Ident("hello_123"),
                     start: tp(36),
                 },
+                Token {
+                    kind: TokenKind::String(Cow::Owned(String::from("Δ"))),
+                    start: tp(45),
+                }
             ],
-            end: tp(45),
+            end: tp(54),
+        });
+    }
+
+    #[test]
+    fn test_errors() {
+        let src = "{]";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidClosingBracket {
+            open_pos: tp(0),
+            close_pos: tp(1),
+        });
+
+        let src = "[";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::UnclosedBracket {
+            open_pos: tp(0),
+        });
+
+        let src = "#";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::UnexpectedChar {
+            pos: tp(0),
+            c: '#',
+        });
+
+        let src = "]";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::UnexpectedClosingBracket {
+            pos: tp(0),
+            c: ']',
+        });
+
+        let src = "\"";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::UnclosedString {
+            start_pos: tp(0),
+        });
+
+        let src = r"'\x2g'";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidEscapeDigit {
+            c: 'g',
+            pos: tp(4),
+        });
+
+        let src = r"'\u{110000}'";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidEscapeCode {
+            code: 0x110000,
+            pos: tp(1),
+        });
+
+        let src = r"'\q'";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidEscapeChar {
+            c: 'q',
+            pos: tp(2),
+        });
+
+        let src = r"'\u{123456789}'";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidUnicodeEscape {
+            pos: tp(1),
+        });
+
+        let src = r"'\u123'";
+        let err = lex(src, &[]).unwrap_err();
+        assert_eq!(err, LexError::InvalidUnicodeEscapeSyntax {
+            pos: tp(3),
         });
     }
 }

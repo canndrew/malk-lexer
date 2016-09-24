@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::char;
 use unicode_brackets::UnicodeBrackets;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexError<'s> {
     InvalidSymbolTable(InvalidSymbolTableError<'s>),
     InvalidClosingBracket {
@@ -39,6 +39,12 @@ pub enum LexError<'s> {
     },
     InvalidEscapeChar {
         c: char,
+        pos: TextPos,
+    },
+    InvalidUnicodeEscape {
+        pos: TextPos,
+    },
+    InvalidUnicodeEscapeSyntax {
         pos: TextPos,
     },
 }
@@ -267,10 +273,43 @@ fn sub_lex<'s>(start: TextPos, src: &'s str, symbols: &[&'s str]) -> Result<SubL
                         '\\' => ('\\', esc_p),
                         'x' => {
                             let (nib0, nib0_end) = try!(next(esc_p));
-                            let (nib1, nib1_end) = try!(next(esc_p));
+                            let (nib1, nib1_end) = try!(next(nib0_end));
                             let nib0 = try!(from_hex(nib0, esc_p));
                             let nib1 = try!(from_hex(nib1, nib0_end));
                             (try!(from_u32((nib0 << 4) | nib1, p)), nib1_end)
+                        },
+                        'u' => {
+                            let (open_c, open_p) = try!(next(esc_p));
+                            if open_c != '{' {
+                                return Err(LexError::InvalidUnicodeEscapeSyntax {
+                                    pos: esc_p,
+                                });
+                            }
+
+                            let mut code = 0u32;
+                            let mut end = open_p;
+                            let mut found_end = false;
+                            for _ in 0..6 {
+                                let (nib, nib_end) = try!(next(end));
+                                if nib == '}' {
+                                    end = nib_end;
+                                    found_end = true;
+                                    break;
+                                }
+                                let nib = try!(from_hex(nib, end));
+                                code = (code << 4) | nib;
+                                end = nib_end;
+                            }
+                            if !found_end {
+                                let (close_c, close_p) = try!(next(end));
+                                if close_c != '}' {
+                                    return Err(LexError::InvalidUnicodeEscape {
+                                        pos: p,
+                                    });
+                                }
+                                end = close_p;
+                            }
+                            (try!(from_u32(code, p)), end)
                         },
                         _   => {
                             return Err(LexError::InvalidEscapeChar {
@@ -357,8 +396,8 @@ pub fn lex<'s>(src: &'s str, symbols: &[&'s str]) -> Result<TokensBuf<'s>, LexEr
     let sub = try!(sub_lex(pos, src, symbols));
     match sub.terminator {
         None => return Ok(sub.tokens),
-        Some((c, dp)) => return Err(LexError::UnexpectedClosingBracket {
-            pos: dp,
+        Some((c, _)) => return Err(LexError::UnexpectedClosingBracket {
+            pos: sub.tokens.end,
             c: c,
         }),
     };

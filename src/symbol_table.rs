@@ -2,7 +2,7 @@ use std::str::pattern::Pattern;
 
 /// Error returned by `validate_symbol_table`. Represents two sequences of symbols that cannot be
 /// parsed unambiguously because they would appear as the same string of text.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InvalidSymbolTableError<'s> {
     pub first: Vec<&'s str>,
     pub second: Vec<&'s str>,
