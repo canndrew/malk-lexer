@@ -1,6 +1,6 @@
 [package]
 name = "malk-lexer"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Andrew Cann <shum@canndrew.org>"]
 repository = "https://github.com/canndrew/malk-lexer"
 homepage = "https://github.com/canndrew/malk-lexer"
